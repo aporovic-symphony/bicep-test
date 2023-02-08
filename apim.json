@@ -1,0 +1,178 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.13.1.58284",
+      "templateHash": "10337448668864675945"
+    }
+  },
+  "parameters": {
+    "uaminame": {
+      "type": "string",
+      "defaultValue": "uami-script"
+    },
+    "utcValue": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "functionAppName": {
+      "type": "string",
+      "defaultValue": "ArticleService01"
+    },
+    "serviceName": {
+      "type": "string",
+      "defaultValue": "ArticleService"
+    }
+  },
+  "variables": {
+    "$fxv#0": "param([string] $specUrl)\r\n$DeploymentScriptOutputs = @{}\r\n[System.Collections.ArrayList]$operationIds = @()\r\n$openApiSpec = Invoke-WebRequest -Uri $specUrl\r\n$openApiSpecObj = ConvertFrom-Json -InputObject $openApiSpec\r\n\r\n$ignoreParameters = \"code\", \"Endpoints\", \"TenantId\"\r\n\r\nforeach ($path in $openApiSpecObj.paths.PSObject.Properties) {\r\n    $method = $path.Value.PSObject.Properties | Select-Object -First 1 -ExpandProperty \"Value\"\r\n    $operationIds.Add($method.operationId)\r\n    [array]$method.parameters = $method.parameters | Where-Object {!($ignoreParameters.Contains($_.name))}\r\n    if ($null -eq $method.parameters)\r\n    {\r\n        $method.PSObject.Properties.Remove('parameters')\r\n    }   \r\n}\r\n\r\n$DeploymentScriptOutputs['Result'] = ConvertTo-Json -Compress $openApiSpecObj -Depth 20\r\n$DeploymentScriptOutputs['OperationIds'] = $operationIds",
+    "$fxv#1": "<!--\r\n    IMPORTANT:\r\n    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.\r\n    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.\r\n    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.\r\n    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.\r\n    - To remove a policy, delete the corresponding policy statement from the policy document.\r\n    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.\r\n    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.\r\n    - Policies are applied in the order of their appearance, from the top down.\r\n    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.\r\n-->\r\n<policies>\r\n    <inbound>\r\n        <set-header name=\"ServiceKey\" exists-action=\"override\">\r\n            <value>{{ServiceName}}</value>\r\n        </set-header>\r\n        <base />\r\n    </inbound>\r\n    <backend>\r\n        <base />\r\n    </backend>\r\n    <outbound>\r\n        <base />\r\n    </outbound>\r\n    <on-error>\r\n        <base />\r\n    </on-error>\r\n</policies>",
+    "$fxv#2": "<!--\r\n    IMPORTANT:\r\n    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.\r\n    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.\r\n    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.\r\n    - To add a policy, place the cursor at the desired insertion point and select a policy from the sidebar.\r\n    - To remove a policy, delete the corresponding policy statement from the policy document.\r\n    - Position the <base> element within a section element to inherit all policies from the corresponding section element in the enclosing scope.\r\n    - Remove the <base> element to prevent inheriting policies from the corresponding section element in the enclosing scope.\r\n    - Policies are applied in the order of their appearance, from the top down.\r\n    - Comments within policy elements are not supported and may disappear. Place your comments between policy elements or at a higher level scope.\r\n-->\r\n<policies>\r\n    <inbound>\r\n        <cors allow-credentials=\"true\">\r\n            <allowed-origins>\r\n                <origin>https://novapp-web-s-main.azurewebsites.net</origin>\r\n                <origin>https://novapp-web-develop.azurewebsites.net</origin>\r\n                <origin>https://novapp-web-main.azurewebsites.net</origin>\r\n                <origin>https://novussandbox.igloodigitalworkplace.com</origin>\r\n                <origin>http://localhost:3000</origin>\r\n                <origin>http://localhost:3001</origin>\r\n                <origin>http://localhost:3002</origin>\r\n            </allowed-origins>\r\n            <allowed-methods>\r\n                <method>*</method>\r\n            </allowed-methods>\r\n            <allowed-headers>\r\n                <header>*</header>\r\n            </allowed-headers>\r\n            <expose-headers>\r\n                <header>*</header>\r\n            </expose-headers>\r\n        </cors>\r\n        <send-request mode=\"new\" response-variable-name=\"internalJWT\" timeout=\"20\" ignore-error=\"true\">\r\n            <set-url>https://validatejwtservice01.azurewebsites.net/api/validation?code=6s14ZrT1ctaEYvXgDvfJ64saODX5mzY2UN9DDm5BFWcyAzFuIzvGuw==</set-url>\r\n            <set-method>GET</set-method>\r\n            <set-header name=\"X-Auth-Token\" exists-action=\"override\">\r\n                <value>@(context.Request.Headers.GetValueOrDefault(\"X-Auth-Token\", context.Request.Url.Query.GetValueOrDefault(\"X-Auth-Token\", \"No Token Found\")))</value>\r\n            </set-header>\r\n        </send-request>\r\n        <choose>\r\n            <when condition=\"@(((IResponse)context.Variables[\"internalJWT\"]).StatusCode == 200)\">\r\n                <set-variable name=\"authToken\" value=\"@(((IResponse)context.Variables[\"internalJWT\"]).Body.As<string>())\" />\r\n            </when>\r\n            <when condition=\"@(((IResponse)context.Variables[\"internalJWT\"]).StatusCode != 200)\">\r\n                <return-response response-variable-name=\"existing response variable\">\r\n                    <set-status code=\"401\" reason=\"Unauthorized\" />\r\n                    <set-header name=\"WWW-Authenticate\" exists-action=\"override\">\r\n                        <value>Bearer error=\"invalid_token\"</value>\r\n                    </set-header>\r\n                </return-response>\r\n            </when>\r\n        </choose>\r\n        <send-request mode=\"new\" response-variable-name=\"domainInfo\" timeout=\"20\" ignore-error=\"true\">\r\n            <set-url>https://domainservice01.azurewebsites.net/api/domains?code=CL_ANJdA4v2E64aArn09yKPWGuOqP5b2tTyaRc1JbeW-AzFuRMb9oA==</set-url>\r\n            <set-method>GET</set-method>\r\n            <set-header name=\"Domain\" exists-action=\"override\">\r\n                <value>@(context.Request.Headers.GetValueOrDefault(\"x-workplacedomain\", \"novapp-web-main.azurewebsites.net\"))</value>\r\n            </set-header>\r\n        </send-request>\r\n        <set-variable name=\"domainInfo\" value=\"@(((IResponse)context.Variables[\"domainInfo\"]).Body.As<JObject>())\" />\r\n        <set-header name=\"WorkplaceId\" exists-action=\"override\">\r\n            <value>@(((JObject)context.Variables[\"domainInfo\"]).SelectToken(\"data.workplaceId\").ToString())</value>\r\n        </set-header>\r\n        <set-header name=\"TenantId\" exists-action=\"override\">\r\n            <value>@(((JObject)context.Variables[\"domainInfo\"]).SelectToken(\"data.tenantId\").ToString())</value>\r\n        </set-header>\r\n        <!-- Extract  TenantId from TenantId header parameter -->\r\n        <set-variable name=\"tenantId\" value=\"@(context.Request.Headers.GetValueOrDefault(\"TenantId\"))\" />\r\n        <set-variable name=\"serviceKey\" value=\"@(context.Request.Headers.GetValueOrDefault(\"ServiceKey\"))\" />\r\n        <set-variable name=\"cacheKey\" value=\"@(context.Variables[\"tenantId\"] + \"_\" + context.Variables[\"serviceKey\"])\" />\r\n        <!--Look for tenantconfig for this tenant in the cache -->\r\n        <cache-lookup-value key=\"@((string)context.Variables[\"cacheKey\"])\" variable-name=\"tenantconfig\" />\r\n        <!-- If API Management doesn’t find it in the cache, make a request for it and store it -->\r\n        <choose>\r\n            <when condition=\"@(!context.Variables.ContainsKey(\"tenantconfig\"))\">\r\n                <!-- Make HTTP request to get tenant profile -->\r\n                <send-request mode=\"new\" response-variable-name=\"tenantconfigresponse\" timeout=\"20\" ignore-error=\"false\">\r\n                    <set-url>https://tenantconfigservice01.azurewebsites.net/api/tenantconfigs?code=guXHV4jl-pOaeae9quyxryTyTM6DHzHzb_GHYy3nmpbGAzFuwEFl9Q==</set-url>\r\n                    <set-method>GET</set-method>\r\n                    <set-header name=\"X-Auth-Token\" exists-action=\"override\">\r\n                        <value>@((string)context.Variables[\"authToken\"])</value>\r\n                    </set-header>\r\n                    <set-header name=\"TenantId\" exists-action=\"override\">\r\n                        <value>@((string)context.Variables[\"tenantId\"])</value>\r\n                    </set-header>\r\n                    <set-header name=\"ServiceKey\" exists-action=\"override\">\r\n                        <value>@((string)context.Variables[\"serviceKey\"])</value>\r\n                    </set-header>\r\n                </send-request>\r\n                <choose>\r\n                    <when condition=\"@(((IResponse)context.Variables[\"tenantconfigresponse\"]).StatusCode == 200)\">\r\n                        <!-- Store response body in context variable -->\r\n                        <set-variable name=\"tenantconfig\" value=\"@(((IResponse)context.Variables[\"tenantconfigresponse\"]).Body.As<string>())\" />\r\n                        <!-- Store result in cache -->\r\n                        <cache-store-value key=\"@((string)context.Variables[\"cacheKey\"])\" value=\"@((string)context.Variables[\"tenantconfig\"])\" duration=\"300\" />\r\n                    </when>\r\n                    <when condition=\"@(((IResponse)context.Variables[\"internalJWT\"]).StatusCode != 200)\">\r\n                        <return-response response-variable-name=\"existing response variable\">\r\n                            <set-status code=\"401\" reason=\"Unauthorized\" />\r\n                            <set-header name=\"WWW-Authenticate\" exists-action=\"override\">\r\n                                <value>Bearer error=\"invalid_token\"</value>\r\n                            </set-header>\r\n                        </return-response>\r\n                    </when>\r\n                </choose>\r\n            </when>\r\n        </choose>\r\n        <set-header name=\"X-Auth-Token\" exists-action=\"override\">\r\n            <value>@((string)context.Variables[\"authToken\"])</value>\r\n        </set-header>\r\n        <set-header name=\"TenantId\" exists-action=\"override\">\r\n            <value>@((string)context.Variables[\"tenantId\"])</value>\r\n        </set-header>\r\n        <set-header name=\"Endpoints\" exists-action=\"override\">\r\n            <value>@((string)context.Variables[\"tenantconfig\"])</value>\r\n        </set-header>\r\n    </inbound>\r\n    <backend>\r\n        <forward-request />\r\n    </backend>\r\n    <outbound />\r\n    <on-error />\r\n</policies>",
+    "allOperationPolicyText": "[replace(variables('$fxv#1'), '{{ServiceName}}', parameters('serviceName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2018-11-30",
+      "name": "[parameters('uaminame')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "open-api-spec",
+      "location": "[parameters('location')]",
+      "kind": "AzurePowerShell",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaminame')))]": {}
+        }
+      },
+      "properties": {
+        "forceUpdateTag": "[parameters('utcValue')]",
+        "azPowerShellVersion": "9.1",
+        "timeout": "PT5M",
+        "arguments": "[format('-specUrl ''{0}?code={1}''', reference(resourceId('Microsoft.Web/sites/functions', parameters('functionAppName'), 'Swagger'), '2022-03-01').invoke_url_template, listkeys(resourceId('Microsoft.Web/sites/functions', parameters('functionAppName'), 'Swagger'), '2022-03-01').default)]",
+        "scriptContent": "[variables('$fxv#0')]",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "P1D"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('uaminame'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/apis",
+      "apiVersion": "2022-04-01-preview",
+      "name": "[format('{0}/{1}', 'apim-api-auto-test-1', format('{0}Api', parameters('functionAppName')))]",
+      "properties": {
+        "type": "http",
+        "protocols": [
+          "https"
+        ],
+        "displayName": "[parameters('functionAppName')]",
+        "path": "[parameters('functionAppName')]",
+        "format": "openapi+json",
+        "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'open-api-spec'), '2020-10-01').outputs.Result]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'open-api-spec')]"
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/policies",
+      "apiVersion": "2022-04-01-preview",
+      "name": "[format('{0}/{1}', 'apim-api-auto-test-1', 'policy')]",
+      "properties": {
+        "format": "rawxml",
+        "value": "[variables('$fxv#2')]"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/apis/policies",
+      "apiVersion": "2022-04-01-preview",
+      "name": "[format('{0}/{1}/{2}', 'apim-api-auto-test-1', format('{0}Api', parameters('functionAppName')), 'policy')]",
+      "properties": {
+        "format": "rawxml",
+        "value": "[variables('allOperationPolicyText')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ApiManagement/service/apis', 'apim-api-auto-test-1', format('{0}Api', parameters('functionAppName')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-10-01",
+      "name": "operation-policy-creation",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "operationIds": {
+            "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'open-api-spec'), '2020-10-01').outputs.OperationIds]"
+          },
+          "functionAppName": {
+            "value": "[parameters('serviceName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.13.1.58284",
+              "templateHash": "6842596654440725194"
+            }
+          },
+          "parameters": {
+            "operationIds": {
+              "type": "array",
+              "minLength": 1
+            },
+            "functionAppName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "$fxv#0": "<policies>\r\n    <inbound>\r\n        <base />\r\n        <set-backend-service id=\"apim-generated-policy\" backend-id=\"{{FunctionAppName}}\" />\r\n    </inbound>\r\n    <backend>\r\n        <base />\r\n    </backend>\r\n    <outbound>\r\n        <base />\r\n    </outbound>\r\n    <on-error>\r\n        <base />\r\n    </on-error>\r\n</policies>",
+            "operationPolicyText": "[replace(variables('$fxv#0'), '{{FunctionAppName}}', toLower(parameters('functionAppName')))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "OperationPolicy",
+                "count": "[length(range(0, length(parameters('operationIds'))))]"
+              },
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2022-04-01-preview",
+              "name": "[format('{0}/{1}/{2}/{3}', split(parameters('operationIds')[range(0, length(parameters('operationIds')))[copyIndex()]], '/')[0], split(parameters('operationIds')[range(0, length(parameters('operationIds')))[copyIndex()]], '/')[1], split(parameters('operationIds')[range(0, length(parameters('operationIds')))[copyIndex()]], '/')[2], 'policy')]",
+              "properties": {
+                "format": "rawxml",
+                "value": "[variables('operationPolicyText')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'open-api-spec')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "spec": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'open-api-spec'), '2020-10-01').outputs.Result]"
+    }
+  }
+}
